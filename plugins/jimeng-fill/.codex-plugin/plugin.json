@@ -1,0 +1,29 @@
+{
+  "name": "jimeng-fill",
+  "version": "0.1.1",
+  "description": "把分镜提示词、参考图和推荐秒数填进即梦视频编辑器。一次只问一个问题，用户明确说生成之前不点击生成。",
+  "author": {
+    "name": "liuSyen",
+    "url": "https://github.com/liuSyen"
+  },
+  "homepage": "https://github.com/liuSyen/jimeng-fill",
+  "repository": "https://github.com/liuSyen/jimeng-fill",
+  "license": "MIT",
+  "keywords": ["jimeng", "即梦", "分镜", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "即梦填图词",
+    "shortDescription": "把分镜提示词、参考图和时长填进即梦",
+    "longDescription": "按分镜文档、秒数表、参考图目录和手动配图的顺序，一次只问一个问题，再填进即梦当前视频编辑器。用户明确说生成之前，不点击生成。",
+    "developerName": "liuSyen",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/liuSyen/jimeng-fill",
+    "defaultPrompt": [
+      "使用即梦填图词，先问我选哪份分镜文档。"
+    ],
+    "brandColor": "#111111",
+    "screenshots": []
+  }
+}

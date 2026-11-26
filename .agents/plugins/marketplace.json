@@ -1,0 +1,20 @@
+{
+  "name": "jimeng-fill",
+  "interface": {
+    "displayName": "即梦填图词"
+  },
+  "plugins": [
+    {
+      "name": "jimeng-fill",
+      "source": {
+        "source": "local",
+        "path": "./plugins/jimeng-fill"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

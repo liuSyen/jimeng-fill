@@ -1,6 +1,6 @@
 # jimeng 工具
 
-服务名：`jimeng`。命令：`node jimeng-codex/src/server.mjs`。
+服务名：`jimeng`。插件安装后由 Codex 启动；本机调试命令是 `node plugins/jimeng-fill/src/server.mjs`。
 
 每次工具成功返回后，只把 `ask` 原样问用户，然后等回答。`step` 表示现在走到哪一步。不要跳步，也不要一次传入分镜、秒数表和参考图目录。
 

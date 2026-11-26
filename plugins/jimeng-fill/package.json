@@ -1,6 +1,6 @@
 {
   "name": "jimeng-codex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Codex MCP：把分镜提示词、参考图和时长填进即梦视频编辑器。",

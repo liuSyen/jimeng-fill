@@ -8,39 +8,21 @@
 
 - macOS，并已安装 Google Chrome
 - Node.js 20 或更高
-- Codex，或其他支持 stdio MCP 的智能体
+- Codex
 - 即梦账号。第一次会弹出一个独立 Chrome 窗口，在那个窗口里登录
 
 这个独立窗口使用 `~/.codex/jimeng-chrome`，调试端口是 `127.0.0.1:9333`，不会占用平时使用的 Chrome。
 
-## 下载
+## 安装
+
+两条命令会同时装上 skill 和 MCP。不需要先克隆仓库，也不需要手动执行 `npm install`。第一次启动 MCP 时会自己装依赖。
 
 ```bash
-git clone https://github.com/liuSyen/jimeng-fill.git
-cd jimeng-fill
-npm install
-npm test
+codex plugin marketplace add liuSyen/jimeng-fill
+codex plugin add jimeng-fill@jimeng-fill
 ```
 
-## 安装 skill
-
-```bash
-mkdir -p ~/.codex/skills
-ln -s "$(pwd)/skill" ~/.codex/skills/jimeng-fill
-```
-
-## 注册 MCP
-
-在 `~/.codex/config.toml` 末尾加入下面这一段，把路径换成你克隆下来的目录：
-
-```toml
-[mcp_servers.jimeng]
-command = "node"
-args = ["/绝对路径/jimeng-fill/src/server.mjs"]
-startup_timeout_sec = 45
-```
-
-保存后新开一轮 Codex 对话，skill 和 MCP 才会被加载。其他智能体把同一条命令配成 stdio MCP，服务名用 `jimeng`。
+装好后新开一轮 Codex 对话。
 
 ## 使用
 
@@ -53,7 +35,7 @@ startup_timeout_sec = 45
 5. 回复「确认匹配」
 6. 告诉它要填的分镜编号，例如 `1-1`
 
-工具说明在 [skill/references/tools.md](skill/references/tools.md)。
+工具说明在 [plugins/jimeng-fill/skills/jimeng-fill/references/tools.md](plugins/jimeng-fill/skills/jimeng-fill/references/tools.md)。
 
 ## 许可
 
