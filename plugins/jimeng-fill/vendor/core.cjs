@@ -61,20 +61,38 @@
     return value !== undefined && value !== null && /^\d+$/.test(String(value)) ? Number(value) : null;
   }
 
+  function durationFromHeading(title) {
+    const text = String(title || '');
+    const paren = /[（(][\t ]*(\d+)[\t ]*(?:秒|[sS])[）)]/.exec(text);
+    if (paren) {
+      const seconds = Number(paren[1]);
+      return seconds > 0 && seconds <= 600 ? seconds : null;
+    }
+    const bare = /分镜[\t ]*\d+[\t ]*[-‐‑–—－][\t ]*\d+[\t ]+(\d+)[\t ]*(?:秒|[sS])\b/.exec(text);
+    if (bare) {
+      const seconds = Number(bare[1]);
+      return seconds > 0 && seconds <= 600 ? seconds : null;
+    }
+    return null;
+  }
+
   function makeTask(prompt, index, meta) {
     const information = meta || {};
     const episode = numberFrom(information.episode);
     const shot = numberFrom(information.shot);
     const sourceId = String(information.id || (episode !== null && shot !== null ? episode + '-' + shot : 'task-' + (index + 1)));
     const refs = extractRefs(prompt);
+    const title = information.title || (episode !== null && shot !== null ? '分镜' + episode + '-' + shot : '任务' + (index + 1));
+    const suggested = information.suggestedDuration != null ? numberFrom(information.suggestedDuration) : durationFromHeading(title);
     return {
       id: sourceId,
       sourceId,
-      title: information.title || (episode !== null && shot !== null ? '分镜' + episode + '-' + shot : '任务' + (index + 1)),
+      title,
       episode,
       shot,
       prompt,
       refs,
+      suggestedDuration: suggested != null && suggested > 0 && suggested <= 600 ? suggested : null,
       validationErrors: prompt.trim() ? [] : ['任务提示词为空。']
     };
   }
@@ -146,7 +164,8 @@
     }
     const warnings = [];
     // Only standalone task headings delimit tasks; dialogue and shot prose do not.
-    const heading = /^[\t ]*(?:#{1,6}[\t ]*)?(?:(?:剧情|任务)[\t ]*(\d+)[\t ]*[:：][\t ]*)?分镜[\t ]*(\d+)[\t ]*[-‐‑–—－][\t ]*(\d+)[\t ]*(?:[：:][^\n]*)?$/gm;
+    // 标题后缀可带（20秒）/(8s)/20秒，也可带冒号说明。
+    const heading = /^[\t ]*(?:#{1,6}[\t ]*)?(?:(?:剧情|任务)[\t ]*(\d+)[\t ]*[:：][\t ]*)?分镜[\t ]*(\d+)[\t ]*[-‐‑–—－][\t ]*(\d+)[\t ]*(?:[（(][\t ]*\d+[\t ]*(?:秒|[sS])[）)]|[\t ]+\d+[\t ]*(?:秒|[sS])|(?:[：:][^\n]*))?[\t ]*$/gm;
     const headings = [...text.matchAll(heading)];
     const structured = /^(?:[\t ]*)(?:【(?:角色|人物|场景|道具)】|\[(?:角色|人物|场景|道具)\]|(?:角色|人物|场景|道具)[：:])/m.test(text);
     let tasks;
@@ -155,7 +174,8 @@
       if (prefix) warnings.push('首个分镜前有 ' + prefix.length + ' 字说明，未作为生成任务；请检查原文前言。');
       tasks = headings.map((match, index) => {
         const prompt = text.slice(match.index, index + 1 < headings.length ? headings[index + 1].index : text.length).trim();
-        return makeTask(prompt, index, { episode: match[2], shot: match[3], title: match[0].trim() });
+        const title = match[0].trim();
+        return makeTask(prompt, index, { episode: match[2], shot: match[3], title, suggestedDuration: durationFromHeading(title) });
       });
     } else {
       const genericHeading = /^[\t ]*(?:#{1,6}[\t ]*)?(?:剧情|任务|提示词)[\t ]*(\d+)[\t ]*[:：][^\n]*$/gm;

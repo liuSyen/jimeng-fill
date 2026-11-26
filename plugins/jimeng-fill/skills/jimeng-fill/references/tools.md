@@ -2,13 +2,14 @@
 
 服务名：`jimeng`。插件安装后由 Codex 启动；本机调试命令是 `node plugins/jimeng-fill/src/server.mjs`。
 
-每次工具成功返回后，只把 `ask` 原样问用户，然后等回答。`step` 表示现在走到哪一步。不要跳步，也不要一次传入分镜、秒数表和参考图目录。
+官方 Codex 会话里，用户要填即梦时调用 `jimeng_guide`。把返回的 `message`/`preview`/`options` 显示在对话框里，等用户回复后再带 `reply` 或附件 `path` 继续。禁止系统弹窗、禁止浏览器网页向导，禁止 find/grep/ls 搜盘，不要提企业工作台侧栏。下面其余工具留给向导内部和中断后的恢复。
 
 | 工具 | 作用 | 参数 |
 |---|---|---|
+| `jimeng_guide` | 会话对话框步进：展示读入内容与选项，再用 reply/path/text 推进 | 可选 `reply`、`path`、`text`、`durations`、`shotId`、`replace`、`regen` |
 | `jimeng_next` | 看当前该问的那一句 | 无 |
 | `jimeng_load` | 只导入分镜，替换当前批次 | `storyboardPath` 或 `text` |
-| `jimeng_durations` | 导入秒数表，或按用户的话跳过 | `durationsPath`，或 `skip: true` |
+| `jimeng_durations` | 导入秒数表、会话内秒数对象，或跳过 | `durationsPath`，或 `durations` 如 `{"1-1":20}`，或 `skip: true` |
 | `jimeng_assets` | 扫描用户选定的参考图文件夹并自动配同名图 | `referencesDir` |
 | `jimeng_assign` | 记下用户刚选的一张图，或跳过这一条 | `ref` 如 `角色:林晚`；`asset` 为 `choices` 里的 id；跳过用 `skip: true` |
 | `jimeng_confirm_matches` | 用户确认整份搭配 | `confirm` 必须是 `确认匹配` |

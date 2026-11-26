@@ -18,13 +18,14 @@ class SafeDOMParser {
   }
 }
 
-function normalizeTable(input, name) {
+export function normalizeDurationMap(input, name = '会话编辑') {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw coded('秒数 JSON 应该是 { "1-1": 5 } 这种对象。', 'DURATION_FILE')
   }
   const durations = {}
   const warnings = []
   for (const [key, value] of Object.entries(input)) {
+    if (value === '' || value == null) continue
     const id = durationsApi.normalizeId(key)
     if (!id) throw coded(`分镜编号无效：${key}。请使用 1-1 这样的格式。`, 'DURATION_INVALID')
     const seconds = durationsApi.number(value)
@@ -34,6 +35,21 @@ function normalizeTable(input, name) {
   }
   if (!Object.keys(durations).length) throw coded('秒数表里没有可用的分镜。', 'DURATION_EMPTY')
   return { name, durations, count: Object.keys(durations).length, warnings, sheet: null }
+}
+
+function normalizeTable(input, name) {
+  return normalizeDurationMap(input, name)
+}
+
+export function extractedDurationsFromTasks(tasks) {
+  const durations = {}
+  for (const task of tasks || []) {
+    if (!task?.id) continue
+    const seconds = durationsApi.number(task.suggestedDuration)
+    if (seconds === null) continue
+    durations[task.id] = seconds
+  }
+  return durations
 }
 
 export async function readDurationTable(filePath) {

@@ -20,6 +20,24 @@ const STORY = `分镜 1-1
 两人在夜里修船。
 `
 
+test('标题里的秒数能拆条并抽出草稿时长', () => {
+  const parsed = parseStoryboard(`## 剧情1: 分镜1-1（20秒）
+【角色】林晚
+【场景】海岛船坞
+【道具】无
+林晚站在船坞边。
+
+## 剧情1: 分镜1-2(8s)
+【角色】林晚
+【场景】海岛船坞
+【道具】无
+林晚转身离开。
+`)
+  assert.deepEqual(parsed.tasks.map(task => task.id), ['1-1', '1-2'])
+  assert.equal(parsed.tasks[0].suggestedDuration, 20)
+  assert.equal(parsed.tasks[1].suggestedDuration, 8)
+})
+
 test('分镜标题和资产头按插件规则拆开', () => {
   const parsed = parseStoryboard(STORY)
   assert.deepEqual(parsed.tasks.map(task => task.id), ['1-1', '1-2'])

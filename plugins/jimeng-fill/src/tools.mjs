@@ -1,4 +1,4 @@
-import { readDurationTable } from './durations.mjs'
+import { extractedDurationsFromTasks, normalizeDurationMap, readDurationTable } from './durations.mjs'
 import { coded } from './errors.mjs'
 import { scanReferences } from './assets.mjs'
 import { capturePage, clickGenerate, fillShot, openEditor, requestStop } from './fill.mjs'
@@ -22,13 +22,16 @@ function assetName(assets, id) {
 }
 
 function viewShot(task, durations, withPrompt) {
+  const suggested = task.suggestedDuration != null ? task.suggestedDuration : null
+  const chosen = durations && Object.hasOwn(durations, task.id) ? durations[task.id] : null
   return {
     id: task.id,
     title: task.title,
     episode: task.episode,
     shot: task.shot,
     ready: Boolean(task.ready),
-    duration: durations && Object.hasOwn(durations, task.id) ? durations[task.id] : null,
+    duration: chosen != null ? chosen : suggested,
+    suggestedDuration: suggested,
     validationErrors: task.validationErrors || [],
     promptLength: String(task.prompt || '').length,
     ...(withPrompt ? { prompt: task.prompt } : {}),
@@ -103,10 +106,14 @@ export function nextAsk(state) {
     return { step: 'storyboard', ask: '请先选择要导入的分镜文档，支持 TXT、MD、DOCX，也可以直接把全文贴过来。' }
   }
   if (!state.durationsChosen) {
-    return { step: 'durations', ask: `分镜已经读入，共 ${state.tasks.length} 条（${state.sourceName}）。请选择这一部的秒数表格，xlsx 或 json 都可以。没有秒数表就回复“跳过”。` }
+    const extracted = extractedDurationsFromTasks(state.tasks)
+    const hint = Object.keys(extracted).length
+      ? `标题里已抽出 ${Object.keys(extracted).length} 条秒数，可在会话里直接改或选用。`
+      : '没有秒数表就在会话里手填，或回复“跳过秒数表”。'
+    return { step: 'durations', ask: `上面是已读入的分镜内容（${state.sourceName}，共 ${state.tasks.length} 条）。请在对话框里选择：用标题秒数、改秒数、附上秒数表，或跳过。${hint}` }
   }
   if (!state.assetsChosen) {
-    return { step: 'assets', ask: '请选择这一部的参考图文件夹。' }
+    return { step: 'assets', ask: '请在对话框里用「+」附上这一部的参考图文件夹，或发送文件夹路径。' }
   }
   const pending = pendingRefs(state)[0]
   if (pending) {
@@ -176,7 +183,14 @@ export async function loadStoryboard(args) {
     updatedAt: null
   }
   await saveState(state)
-  return withAsk(state, { sourceName: source.name, shotCount: state.tasks.length, warnings: state.warnings })
+  const extractedDurations = extractedDurationsFromTasks(state.tasks)
+  return withAsk(state, {
+    sourceName: source.name,
+    shotCount: state.tasks.length,
+    warnings: state.warnings,
+    extractedDurations,
+    extractedCount: Object.keys(extractedDurations).length
+  })
 }
 
 export async function loadDurations(args) {
@@ -184,11 +198,18 @@ export async function loadDurations(args) {
   const ask = nextAsk(state)
   if (ask.step === 'storyboard') throw coded(ask.ask, 'NEED_ANSWER')
   if (args.referencesDir) throw coded('参考图目录等这一步问完再选。', 'STEP_BY_STEP')
-  if (args.skip === true && args.durationsPath) throw coded('跳过和秒数表文件只能二选一。', 'DURATION_FILE')
-  if (args.skip !== true && !args.durationsPath) throw coded('请给出秒数表路径，或明确跳过。', 'DURATION_REQUIRED')
+  const inline = args.durations && typeof args.durations === 'object' ? args.durations : null
+  const sources = [args.skip === true, Boolean(args.durationsPath), Boolean(inline)].filter(Boolean).length
+  if (sources > 1) throw coded('跳过、秒数表文件和会话秒数表只能选一种。', 'DURATION_FILE')
+  if (sources === 0) throw coded('请给出秒数表路径、会话秒数表，或明确跳过。', 'DURATION_REQUIRED')
   if (args.skip === true) {
     state.durations = null
     state.durationName = null
+  } else if (inline) {
+    const table = normalizeDurationMap(inline, '会话编辑')
+    state.durations = table.durations
+    state.durationName = table.name
+    state.warnings = [...new Set([...(state.warnings || []), ...(table.warnings || [])])]
   } else {
     const table = await readDurationTable(args.durationsPath)
     state.durations = table.durations
@@ -233,6 +254,48 @@ export async function confirmMatches(args) {
 export async function currentAsk() {
   const state = await loadState()
   return nextAsk(state)
+}
+
+export async function wizardBoard() {
+  const state = await loadState()
+  const extractedDurations = extractedDurationsFromTasks(state.tasks)
+  return {
+    ...nextAsk(state),
+    sourceName: state.sourceName,
+    durationName: state.durationName,
+    durationsChosen: Boolean(state.durationsChosen),
+    assetsChosen: Boolean(state.assetsChosen),
+    assetCount: state.assets.length,
+    assets: state.assets.map(asset => ({ id: asset.id, name: asset.name })),
+    extractedDurations,
+    shots: state.tasks.map(task => ({
+      ...viewShot(task, state.durations, true),
+      refs: (task.matches || []).map(match => ({
+        key: `${match.kind}:${match.name}`,
+        kind: match.kind,
+        name: match.name,
+        status: match.status,
+        assetId: match.assetId ?? null,
+        optional: Boolean(match.optional) || match.kind === '道具'
+      }))
+    }))
+  }
+}
+
+export async function updateShotPrompt(shotId, prompt) {
+  const state = await loadState()
+  const task = state.tasks.find(item => item.id === shotId)
+  if (!task) throw coded('分镜不存在，请重新加载分镜文档。', 'TASK_MISSING')
+  const parsed = parseStoryboard(String(prompt || ''))
+  const next = parsed.tasks[0]
+  if (!next || !String(next.prompt || '').trim()) throw coded('提示词是空的。', 'PROMPT_EMPTY')
+  task.prompt = next.prompt
+  if (Array.isArray(next.refs)) task.refs = next.refs
+  state.matchesConfirmed = false
+  state.lastFill = null
+  rematch(state)
+  await saveState(state)
+  return wizardBoard()
 }
 
 export async function listShots(args = {}) {

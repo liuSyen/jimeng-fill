@@ -1,4 +1,4 @@
 interface:
   display_name: "即梦填图词"
   short_description: "把分镜提示词、参考图和时长填进即梦视频编辑器；生成需单独确认"
-  default_prompt: "使用 $jimeng-fill 连接即梦。一次只问一个问题：先分镜文档，再秒数表，再参考图目录，接着逐条确认参考图。不要擅自点击生成。"
+  default_prompt: "使用 $jimeng-fill。立刻调用 jimeng_guide，在当前官方 Codex 会话里让用户用系统文件选择器选文件和文件夹。禁止 find/grep 搜路径，禁止向用户要路径，也不要提 Codex 工作台侧栏。选中后点下一步，逐条改完再填进即梦。不要擅自点击生成。"

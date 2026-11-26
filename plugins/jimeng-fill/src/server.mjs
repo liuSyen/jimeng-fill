@@ -2,6 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
+import { runGuide } from './guide.mjs'
 import {
   acknowledgePage,
   assignReference,
@@ -37,7 +38,30 @@ function wrap(fn) {
 }
 
 export function createServer() {
-  const server = new McpServer({ name: 'jimeng', version: '0.1.0' })
+  const server = new McpServer({ name: 'jimeng', version: '0.1.10' }, { capabilities: { elicitation: {} } })
+  server.registerTool('jimeng_guide', {
+    description: '官方 Codex 填即梦入口。优先用会话内 MCP 表单（单选+确认）展示已读分镜与选项；选文件用系统文件选择器；不打开浏览器。首次无参调用并等待表单；若退回 chat 模式，把 message 贴进对话后带 reply/path/text 再调。不会点击生成。',
+    inputSchema: {
+      reply: z.string().optional().describe('用户在对话框里回复的选项原文或编号'),
+      path: z.string().optional().describe('用户用 Codex「+」附上的分镜/秒数表/参考图文件夹绝对路径'),
+      storyboardPath: z.string().optional().describe('分镜文件路径，等同 path'),
+      durationsPath: z.string().optional().describe('秒数表路径'),
+      referencesDir: z.string().optional().describe('参考图文件夹路径'),
+      text: z.string().optional().describe('用户粘贴的分镜全文'),
+      durations: z.record(z.union([z.number(), z.string()])).optional().describe('会话内秒数表 JSON'),
+      shotId: z.string().optional().describe('要填入或补充的分镜编号'),
+      replace: z.boolean().optional().describe('清空编辑器后重填'),
+      regen: z.boolean().optional().describe('对 shotId 让 Codex 补充提示词')
+    }
+  }, async (args = {}) => {
+    try {
+      const data = await runGuide(server, args)
+      return { content: [{ type: 'text', text: JSON.stringify({ ok: true, ...data }, null, 2) }] }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '操作失败'
+      return { isError: true, content: [{ type: 'text', text: JSON.stringify({ ok: false, code: error?.code || 'OPERATION_FAILED', message }, null, 2) }] }
+    }
+  })
   server.registerTool('jimeng_open', {
     description: '打开或连接独立 Chrome 里的即梦创作页，返回视频编辑器是否就绪。不会点击生成。',
     inputSchema: {}
@@ -55,16 +79,17 @@ export function createServer() {
     inputSchema: {}
   }, wrap(currentAsk))
   server.registerTool('jimeng_load', {
-    description: '只导入分镜文档。调用前先问用户选哪个 TXT、MD 或 DOCX，等他给出路径或全文后再调用。不要在同一次调用里带秒数表或参考图目录。成功后只把 ask 原样问用户，然后停下。',
+    description: '仅向导内部或中断恢复时用。不要用它代替 jimeng_guide，也不要用 find/grep 自己找分镜路径。导入 TXT/MD/DOCX；不要同次带秒数表或参考图目录。',
     inputSchema: {
       storyboardPath: z.string().optional().describe('用户刚刚选定的分镜文件绝对路径'),
       text: z.string().optional().describe('用户直接粘贴的分镜全文。与 storyboardPath 二选一')
     }
   }, wrap(loadStoryboard))
   server.registerTool('jimeng_durations', {
-    description: '只在用户已经回答秒数表那一问之后调用。传入 durationsPath，或在用户明确说跳过时传 skip=true。不要和分镜、参考图目录同一轮调用。然后只问返回的 ask。',
+    description: '只在用户已经回答秒数表那一问之后调用。传入 durationsPath、会话内 durations 对象，或在用户明确说跳过时传 skip=true。不要和分镜、参考图目录同一轮调用。',
     inputSchema: {
       durationsPath: z.string().optional().describe('用户选定的秒数表。xlsx 需有“分镜”和“推荐时长（秒）”列，或 json 如 {"1-1":5}'),
+      durations: z.record(z.union([z.number(), z.string()])).optional().describe('会话内编辑的秒数表，如 {"1-1":20}'),
       skip: z.boolean().optional().describe('仅当用户明确说没有秒数表、跳过时为 true')
     }
   }, wrap(loadDurations))
